@@ -1,0 +1,15 @@
+[DEFAULT]
+#IRC-GameSearch Configuration
+server = irc.rizon.net/6667
+ssl = off
+bot_nick = GameSearchBot,GameSearch
+channel = #devforge.games,#ireland
+perform = PRIVMSG Boliver :I am here
+owner = Boliver
+admin = TorS
+
+[IGDB]
+# IGDB API credentials - Get these from https://api-docs.igdb.com/
+# Copy this file to irc-gamebot.conf and fill in your actual credentials
+client_id = your_client_id_here
+access_token = your_access_token_here

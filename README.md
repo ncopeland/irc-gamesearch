@@ -32,8 +32,30 @@ An IRC bot that searches for games using the IGDB API and responds to channel co
 
 4. **Run the bot**:
    ```bash
+   # Using the control script (recommended)
+   ./gamebot.sh start
+   
+   # Or run directly
    python3 irc_gamebot.py
    ```
+
+## Control Script
+
+The included `gamebot.sh` script provides easy bot management:
+
+```bash
+./gamebot.sh start    # Start the bot
+./gamebot.sh stop     # Stop the bot
+./gamebot.sh status   # Show bot status and recent logs
+./gamebot.sh restart  # Restart the bot
+```
+
+The script handles:
+- Process management with PID files
+- Graceful shutdown (SIGTERM then SIGKILL)
+- Status checking and process info
+- Log file management
+- Error handling and colored output
 
 ## Configuration
 

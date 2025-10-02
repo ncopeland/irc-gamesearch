@@ -46,7 +46,12 @@ class IRCGameBot:
         
         # IGDB API settings
         self.igdb_client_id = self.config.get('IGDB', 'client_id', fallback='')
+        self.igdb_client_secret = self.config.get('IGDB', 'client_secret', fallback='')
         self.igdb_access_token = self.config.get('IGDB', 'access_token', fallback='')
+        
+        # Get access token if we have client credentials but no token
+        if self.igdb_client_id and self.igdb_client_secret and not self.igdb_access_token:
+            self.igdb_access_token = self.get_igdb_access_token()
         
         # Bot state
         self.socket = None
@@ -105,6 +110,34 @@ class IRCGameBot:
     def is_owner(self, nick: str) -> bool:
         """Check if user is owner"""
         return nick.lower() == self.owner.lower()
+    
+    def get_igdb_access_token(self) -> str:
+        """Get IGDB access token using client credentials"""
+        try:
+            url = "https://id.twitch.tv/oauth2/token"
+            data = {
+                'client_id': self.igdb_client_id,
+                'client_secret': self.igdb_client_secret,
+                'grant_type': 'client_credentials'
+            }
+            
+            request = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode('utf-8'))
+            request.add_header('Content-Type', 'application/x-www-form-urlencoded')
+            
+            with urllib.request.urlopen(request) as response:
+                token_data = json.loads(response.read().decode('utf-8'))
+                access_token = token_data.get('access_token')
+                
+                if access_token:
+                    self.logger.info("Successfully obtained IGDB access token")
+                    return access_token
+                else:
+                    self.logger.error("Failed to get access token from IGDB")
+                    return ""
+                    
+        except Exception as e:
+            self.logger.error(f"Error getting IGDB access token: {e}")
+            return ""
     
     def parse_game_command(self, message: str) -> Tuple[str, Dict[str, List[str]]]:
         """Parse !game command and extract search terms and filters"""
@@ -274,14 +307,9 @@ class IRCGameBot:
             self.connect()
             self.running = True
             
-            # Join channels
-            for channel in self.channels:
-                self.join_channel(channel)
-                time.sleep(1)
-            
-            # Send perform command
-            if self.perform:
-                self.send(self.perform)
+            # Wait for registration to complete and MOTD
+            registration_complete = False
+            motd_complete = False
             
             # Main message loop
             while self.running:
@@ -292,11 +320,54 @@ class IRCGameBot:
                     
                     for line in data.strip().split('\r\n'):
                         if line:
-                            self.logger.debug(f"RECV: {line}")
+                            self.logger.info(f"RECV: {line}")
                             
                             # Handle PING
                             if line.startswith('PING'):
                                 self.send(f"PONG {line[5:]}")
+                            
+                            # Check for successful registration
+                            elif "001" in line or "Welcome" in line:
+                                registration_complete = True
+                                self.logger.info("Successfully registered with IRC server")
+                            
+                            # Check for end of MOTD
+                            elif "376" in line or "422" in line:  # End of MOTD or No MOTD
+                                motd_complete = True
+                                self.logger.info("MOTD complete, joining channels...")
+                                
+                                # Now join channels
+                                for channel in self.channels:
+                                    self.join_channel(channel)
+                                    time.sleep(1)
+                                
+                                # Send perform command
+                                if self.perform:
+                                    self.send(self.perform)
+                            
+                            # Handle error messages
+                            elif "433" in line:  # Nickname already in use
+                                self.logger.warning("Nickname in use, trying alternative...")
+                                if self.bot_alt_nick and self.bot_nick == self.bot_alt_nick:
+                                    # Try with random number
+                                    import random
+                                    new_nick = f"{self.bot_nick}{random.randint(100, 999)}"
+                                    self.send(f"NICK {new_nick}")
+                                    self.bot_nick = new_nick
+                                elif self.bot_alt_nick:
+                                    self.send(f"NICK {self.bot_alt_nick}")
+                                    self.bot_nick = self.bot_alt_nick
+                                else:
+                                    # Try with random number
+                                    import random
+                                    new_nick = f"{self.bot_nick}{random.randint(100, 999)}"
+                                    self.send(f"NICK {new_nick}")
+                                    self.bot_nick = new_nick
+                            
+                            elif "451" in line:  # Not registered
+                                self.logger.warning("Not registered, retrying...")
+                                self.send(f"USER {self.bot_nick} 0 * :{self.bot_nick}")
+                                self.send(f"NICK {self.bot_nick}")
                             
                             # Handle other messages
                             else:

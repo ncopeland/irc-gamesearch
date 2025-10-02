@@ -12,4 +12,4 @@ admin = TorS
 # IGDB API credentials - Get these from https://api-docs.igdb.com/
 # Copy this file to irc-gamebot.conf and fill in your actual credentials
 client_id = your_client_id_here
-access_token = your_access_token_here
+client_secret = your_client_secret_here

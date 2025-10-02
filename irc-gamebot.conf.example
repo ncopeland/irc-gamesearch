@@ -7,6 +7,7 @@ channel = #devforge.games,#ireland
 perform = PRIVMSG Boliver :I am here
 owner = Boliver
 admin = TorS
+message_delay = 1.0
 
 [IGDB]
 # IGDB API credentials - Get these from https://api-docs.igdb.com/

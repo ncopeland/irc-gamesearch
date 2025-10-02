@@ -2,6 +2,22 @@
 
 An IRC bot that searches for games using the IGDB API and responds to channel commands.
 
+Copyright (C) 2025 Boliver
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
 ## Features
 
 - **Game Search**: Responds to `!game <search term>` in channels
@@ -14,6 +30,8 @@ An IRC bot that searches for games using the IGDB API and responds to channel co
   - `!help` (admin/owner)
 - **Multi-channel Support**: Can join multiple channels
 - **SSL Support**: Optional SSL connection to IRC servers
+- **Multiple Perform Commands**: Support for multiple IRC commands on connect (separated by semicolons)
+- **Rate Limiting**: Configurable message delay to prevent flooding
 - **Comprehensive Logging**: Both file and console logging
 
 ## Setup
@@ -67,13 +85,14 @@ server = irc.rizon.net/6667
 ssl = off
 bot_nick = GameSearchBot,GameSearch
 channel = #devforge.games,#ireland
-perform = PRIVMSG Boliver :I am here
+perform = PRIVMSG nickserv :identify password ; PRIVMSG Boliver :I am here
 owner = Boliver
 admin = TorS
+message_delay = 1.0
 
 [IGDB]
 client_id = your_client_id_here
-access_token = your_access_token_here
+client_secret = your_client_secret_here
 ```
 
 ## Usage

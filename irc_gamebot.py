@@ -2,6 +2,22 @@
 """
 IRC Game Search Bot
 A bot that searches for games using the IGDB API and responds to IRC commands.
+
+Copyright (C) 2025  Boliver
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
 
 import socket
@@ -58,6 +74,10 @@ class IRCGameBot:
         self.running = False
         self.connected = False
         
+        # Rate limiting
+        self.last_message_time = 0
+        self.message_delay = self.config.getfloat('DEFAULT', 'message_delay', fallback=1.0)  # seconds between messages
+        
     def connect(self):
         """Connect to IRC server"""
         try:
@@ -80,9 +100,17 @@ class IRCGameBot:
             raise
     
     def send(self, message: str):
-        """Send message to IRC server"""
+        """Send message to IRC server with rate limiting"""
         if self.socket:
+            # Rate limiting
+            current_time = time.time()
+            time_since_last = current_time - self.last_message_time
+            if time_since_last < self.message_delay:
+                sleep_time = self.message_delay - time_since_last
+                time.sleep(sleep_time)
+            
             self.socket.send(f"{message}\r\n".encode('utf-8'))
+            self.last_message_time = time.time()
             self.logger.debug(f"SENT: {message}")
     
     def send_privmsg(self, target: str, message: str):
@@ -95,6 +123,11 @@ class IRCGameBot:
             channel = '#' + channel
         self.send(f"JOIN {channel}")
         self.logger.info(f"Joined channel: {channel}")
+        
+        # Update config file
+        if channel not in self.channels:
+            self.channels.append(channel)
+            self.update_config_channels()
     
     def part_channel(self, channel: str):
         """Leave IRC channel"""
@@ -102,6 +135,25 @@ class IRCGameBot:
             channel = '#' + channel
         self.send(f"PART {channel}")
         self.logger.info(f"Left channel: {channel}")
+        
+        # Update config file
+        if channel in self.channels:
+            self.channels.remove(channel)
+            self.update_config_channels()
+    
+    def update_config_channels(self):
+        """Update the channels list in the config file"""
+        try:
+            # Update the config object
+            self.config.set('DEFAULT', 'channel', ','.join(self.channels))
+            
+            # Write to file
+            with open('irc-gamebot.conf', 'w') as configfile:
+                self.config.write(configfile)
+            
+            self.logger.info(f"Updated config file with channels: {', '.join(self.channels)}")
+        except Exception as e:
+            self.logger.error(f"Failed to update config file: {e}")
     
     def is_admin(self, nick: str) -> bool:
         """Check if user is admin or owner"""
@@ -341,9 +393,12 @@ class IRCGameBot:
                                     self.join_channel(channel)
                                     time.sleep(1)
                                 
-                                # Send perform command
+                                # Send perform commands
                                 if self.perform:
-                                    self.send(self.perform)
+                                    # Split by semicolon and send each command
+                                    commands = [cmd.strip() for cmd in self.perform.split(';') if cmd.strip()]
+                                    for cmd in commands:
+                                        self.send(cmd)
                             
                             # Handle error messages
                             elif "433" in line:  # Nickname already in use
